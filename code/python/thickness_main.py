@@ -10,13 +10,14 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.pyplot import imshow
 import diffusion
+import geometry
 
 def main():
     pass
 
 imgfolder = '../../img/'
 resultfolder = '../../result/'
-imgname = '7.png'
+imgname = '8.png'
 
 if __name__ == "__main__":
     # TODO: move this to main() after debugging
@@ -28,6 +29,7 @@ if __name__ == "__main__":
     boundin = (g > 150) # inner boundary drawn in green
     boundout = (r > 150) # outer boundary drawn in red
     region = (b > 200) # region colored in blue
+    outside = (r + g + b < 10)
     bound_points = np.logical_or(boundin, boundout) # boundary points
     
     Iin = np.zeros(b.shape)
@@ -43,9 +45,65 @@ if __name__ == "__main__":
     
     fixed_points = np.logical_not(region)
     
-    Iout = diffusion.linear_heat_diffusion(Iin, fixed_points = fixed_points, maxiter = 1000)
-    imshow(Iout)
-    np.save(resultfolder + 'u' + imgname.split('.')[0], Iout)
+    u = diffusion.linear_heat_diffusion(Iin, fixed_points = fixed_points, maxiter = 4000)
+    imshow(u)
+    np.save(resultfolder + 'u' + imgname.split('.')[0], u)
+    u = np.load(resultfolder + 'u' + imgname.split('.')[0] + '.npy')
+    ''' Calculate the tangent field 
+    '''
+    grad = geometry.calculate_gradient(u)
+    ux, uy = grad[0], grad[1]
+    T = geometry.calculate_tangent_field(grad)
+    Tx, Ty = T[:,:,0], T[:,:,1]
+    denom = np.sum(abs(T), axis = 2)
+    denom_min = min(denom[region])
+    
+    ''' Test the update scheme
+    '''
+    L0 = np.zeros(u.shape)
+    L1 = np.zeros(u.shape)
+    
+    L0old = np.zeros(u.shape)
+    L1old = np.zeros(u.shape)
+    
+    stop = False
+    count = 0
+    while not stop:
+        numer0 = np.ones(u.shape)
+        numer1 = np.ones(u.shape)
+        for n in xrange(u.ndim):
+            L0_p = np.roll(L0old, -1, axis = n)
+            L0_m = np.roll(L0old, 1, axis = n)
+            L1_p = np.roll(L1old, -1, axis = n)
+            L1_m = np.roll(L1old, 1, axis = n)
+            numer0 += abs(T[:,:,n]) * \
+                      ((T[:,:,n] > 0) * L0_m  + (T[:,:,n] < 0) * L0_p)
+            numer1 += abs(T[:,:,n]) * \
+                      ((T[:,:,n] > 0) * L1_p  + (T[:,:,n] < 0) * L1_m)
+        
+        denom[denom == 0] = 1.0
+        L0 = numer0/denom
+        L1 = numer1/denom
+        L0[boundin] = 0.0
+        L1[boundout] = 0.0
+        L0[outside] = 0.0
+        L1[outside] = 0.0
+        
+        count += 1
+        if count > 10000:
+            break;
+            
+        L0old, L1old = L0, L1
+    
+    W = L0 + L1
+    W[outside] = 0
+    imshow(W)
+        
+    
+    
+    
+    
+    
     
     
     

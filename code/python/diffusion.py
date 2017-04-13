@@ -35,10 +35,10 @@ def linear_heat_diffusion(Iin, dt = 0.2, fixed_points = [], maxiter = 100):
     count = 0
     while (not stop): 
         # the shifted matrices
-        I_px = np.roll(Iold, 1, axis = 0)
-        I_mx = np.roll(Iold, -1, axis = 0)
-        I_py = np.roll(Iold, 1, axis = 1)
-        I_my = np.roll(Iold, -1, axis = 1)
+        I_px = np.roll(Iold, -1, axis = 0)
+        I_mx = np.roll(Iold, 1, axis = 0)
+        I_py = np.roll(Iold, -1, axis = 1)
+        I_my = np.roll(Iold, 1, axis = 1)
         # pad the boundary with the nearest neighbor
         I_px[0,] = Iold[0,]
         I_mx[I_mx.shape[0] - 1,] = Iold[Iold.shape[0] - 1,]
@@ -90,10 +90,10 @@ def geometric_heat_diffusion(Iin, dt = 0.25, fixed_points = [], maxiter = 100):
     count = 0
     while (not stop): 
         # the shifted matrices
-        I_px = np.roll(Iold, dx, axis = 0)
-        I_mx = np.roll(Iold, -dx, axis = 0)
-        I_py = np.roll(Iold, dy, axis = 1)
-        I_my = np.roll(Iold, -dy, axis = 1)
+        I_px = np.roll(Iold, -dx, axis = 0)
+        I_mx = np.roll(Iold, dx, axis = 0)
+        I_py = np.roll(Iold, -dy, axis = 1)
+        I_my = np.roll(Iold, dy, axis = 1)
         
         # replicate the boundary term with the closest
         I_px[0,] = Iold[0,]
@@ -101,10 +101,10 @@ def geometric_heat_diffusion(Iin, dt = 0.25, fixed_points = [], maxiter = 100):
         I_py[:, 0] = Iold[:, 0]
         I_my[:, I_my.shape[1] - 1] = Iold[:, Iold.shape[1] - 1]
         
-        I_pxpy = np.roll(I_px, dy, axis = 1)
-        I_pxmy = np.roll(I_px, -dy, axis = 1)
-        I_mxpy = np.roll(I_mx, dy, axis = 1)
-        I_mxmy = np.roll(I_mx, -dy, axis = 1)
+        I_pxpy = np.roll(I_px, -dy, axis = 1)
+        I_pxmy = np.roll(I_px, dy, axis = 1)
+        I_mxpy = np.roll(I_mx, -dy, axis = 1)
+        I_mxmy = np.roll(I_mx, dy, axis = 1)
         
         I_pxpy[:, 0] = I_px[:, 0]
         I_pxmy[:, I_pxmy.shape[1] - 1] = I_px[:, I_px.shape[1] - 1]

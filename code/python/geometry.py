@@ -23,8 +23,8 @@ def calculate_gradient(u, mode = 'central'):
     grad = [None] * u.ndim
     for n in xrange(u.ndim):
         # the shifted matrices, ignore the boundary error from cyclic shift
-        u_p = np.roll(u, 1, axis = n)
-        u_m = np.roll(u, -1, axis = n)
+        u_p = np.roll(u, -1, axis = n)
+        u_m = np.roll(u, 1, axis = n)
         
         if mode == 'forward':
             du = (u_p - u)/1.0
@@ -63,7 +63,5 @@ def calculate_tangent_field(grad):
     return T
 
 if __name__ == "__main__":
-    u = Iout
-    grad = calculate_gradient(Iout)
-    T = calculate_tangent_field(grad)
+    pass
     
