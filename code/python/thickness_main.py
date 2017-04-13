@@ -11,9 +11,15 @@ from matplotlib import pyplot as plt
 from matplotlib.pyplot import imshow
 import diffusion
 
+def main():
+    pass
+
 imgfolder = '../../img/'
-imgname = '1.png'
+resultfolder = '../../result/'
+imgname = '7.png'
+
 if __name__ == "__main__":
+    # TODO: move this to main() after debugging
     img = cv.imread(imgfolder + imgname, cv.IMREAD_COLOR)
     b,g,r = cv.split(img) # get b, g, r
     img = cv.merge([r,g,b]) # switch it to r, g, b
@@ -39,6 +45,7 @@ if __name__ == "__main__":
     
     Iout = diffusion.linear_heat_diffusion(Iin, fixed_points = fixed_points, maxiter = 1000)
     imshow(Iout)
+    np.save(resultfolder + 'u' + imgname.split('.')[0], Iout)
     
     
     

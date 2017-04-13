@@ -30,8 +30,8 @@ import matplotlib.image as mpimg
 import diffusion
 
 I = cv.imread('messi.jpg', 0)
-#Iout = diffusion.linear_heat_diffusion(I, maxiter = 100, dt = 0.25)
-Iout = diffusion.geometric_heat_diffusion(I, maxiter = 100, dt = 0.1)
+Iout = diffusion.linear_heat_diffusion(I, maxiter = 1000, dt = 0.20)
+#Iout = diffusion.geometric_heat_diffusion(I, maxiter = 1000, dt = 0.20)
 plt.subplot(121)
 plt.imshow(I, cmap = 'gray')
 plt.subplot(122)
