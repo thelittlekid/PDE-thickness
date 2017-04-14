@@ -17,7 +17,7 @@ def main():
 
 imgfolder = '../../img/'
 resultfolder = '../../result/'
-imgname = '8.png'
+imgname = '6.png'
 
 if __name__ == "__main__":
     # TODO: move this to main() after debugging
@@ -29,12 +29,15 @@ if __name__ == "__main__":
     boundin = (g > 150) # inner boundary drawn in green
     boundout = (r > 150) # outer boundary drawn in red
     region = (b > 200) # region colored in blue
-    outside = (r + g + b < 10)
+    inside = (r + g + b < 10) # inside exterior
+    outside = (r == 127) # outside exterior
+    exterior = np.logical_or(inside, outside)
     bound_points = np.logical_or(boundin, boundout) # boundary points
     
     Iin = np.zeros(b.shape)
     Iin[boundin] = 0.0
     Iin[boundout] = 1.0
+    Iin[outside] = 1.0
     Iin[region] = .5
     
     # mask: only focus on the region within the enclosing bounding box
@@ -86,8 +89,8 @@ if __name__ == "__main__":
         L1 = numer1/denom
         L0[boundin] = 0.0
         L1[boundout] = 0.0
-        L0[outside] = 0.0
-        L1[outside] = 0.0
+        L0[exterior] = 0.0
+        L1[exterior] = 0.0
         
         count += 1
         if count > 10000:
@@ -96,7 +99,7 @@ if __name__ == "__main__":
         L0old, L1old = L0, L1
     
     W = L0 + L1
-    W[outside] = 0
+    W[exterior] = 0
     imshow(W)
         
     
