@@ -9,7 +9,8 @@ import numpy as np
 import math
 import numpy.linalg as LA
 
-def linear_heat_diffusion(Iin, dt = 0.2, fixed_points = [], maxiter = 100):
+def linear_heat_diffusion(Iin, dt = 0.2, fixed_points = [], maxiter = 100, \
+                          precision = 1e-6):
     """Diffuses a grayscale image with linear heat equation
 
     Args:
@@ -19,6 +20,7 @@ def linear_heat_diffusion(Iin, dt = 0.2, fixed_points = [], maxiter = 100):
         fixed_points: boolean matrix specifying fixed points which shall NOT be
             smoothed
         maxiter: maximum number of iterations
+        precision: minimum precision requirement
 
     Returns:
         The diffused version of the input grayscale image
@@ -29,7 +31,7 @@ def linear_heat_diffusion(Iin, dt = 0.2, fixed_points = [], maxiter = 100):
     stop = False
     
     if dt > .25:
-        print 'CFL condition not satisfied, dt must be less than ', .25 * min(dx, dy)**2 
+        print 'CFL condition not satisfied, dt must be less than ', .25 
 #        return Iin
     
     count = 0
@@ -54,16 +56,17 @@ def linear_heat_diffusion(Iin, dt = 0.2, fixed_points = [], maxiter = 100):
             break
         
         diffnorm = LA.norm(I - Iold, np.inf)
-        if(diffnorm < 1e-6):
+        if(diffnorm < precision):
             stop = True
             
         Iold = I
-    print "number of iteration: ", count
-    print "norm of difference: ", diffnorm
+    print "number of iteration in linear heat diffusion: ", count
+    print "norm of difference in linear heat diffusion: ", diffnorm
     pass
     return I
 
-def geometric_heat_diffusion(Iin, dt = 0.25, fixed_points = [], maxiter = 100):
+def geometric_heat_diffusion(Iin, dt = 0.25, fixed_points = [], maxiter = 100,\
+                             precision = 1e-6):
     """Diffuses a grayscale image with geometric heat equation
 
     Args:
@@ -73,6 +76,7 @@ def geometric_heat_diffusion(Iin, dt = 0.25, fixed_points = [], maxiter = 100):
         fixed_points: boolean matrix specifying fixed points which shall NOT be
             smoothed
         maxiter: maximum number of iterations
+        precision: minimum requirement on precision
 
     Returns:
         The diffused version of the input grayscale image
@@ -84,7 +88,8 @@ def geometric_heat_diffusion(Iin, dt = 0.25, fixed_points = [], maxiter = 100):
     stop = False
     
     if dt > .25:
-        print 'CFL condition not satisfied, dt must be less than ', .25 * min(dx, dy)**2 
+        print 'CFL condition not satisfied, dt must be less than ', \
+                .25 * min(dx, dy)**2 
 #        return Iin
     
     count = 0
@@ -133,7 +138,8 @@ def geometric_heat_diffusion(Iin, dt = 0.25, fixed_points = [], maxiter = 100):
         if count > maxiter:
             break
         
-        if(np.array_equal(I, Iold)):
+        diffnorm = LA.norm(I - Iold, np.inf)
+        if(diffnorm < precision):
             stop = True
             
         Iold = I
