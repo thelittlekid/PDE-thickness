@@ -17,7 +17,7 @@ def main():
 
 imgfolder = '../../img/'
 resultfolder = '../../result/'
-imgname = '2.png'
+imgname = 'test.png'
 
 if __name__ == "__main__":
     # TODO: move this to main() after debugging
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     bound_points = np.logical_or(boundin, boundout) # boundary points
     
     Iin = np.zeros(b.shape)
-    Iin[boundin], Iin[boundout], Iin[outside], Iin[region] = 0.0, 1.0, 1.0, 0.5
+    Iin[boundout], Iin[outside], Iin[region] = 1.0, 1.0, 0.5
 
     
     # mask: only focus on the region within the enclosing bounding box
@@ -47,7 +47,8 @@ if __name__ == "__main__":
     fixed_points = np.logical_not(region)
     
     ''' Solve Laplace Equation '''
-    u = diffusion.linear_heat_diffusion(Iin, fixed_points = fixed_points, maxiter = 4000)
+    u = diffusion.linear_heat_diffusion(Iin, fixed_points = fixed_points, \
+                                        precision = 1e-8, maxiter = 4000)
     imshow(u)
     np.save(resultfolder + 'u' + imgname.split('.')[0], u)
     u = np.load(resultfolder + 'u' + imgname.split('.')[0] + '.npy')
@@ -61,12 +62,15 @@ if __name__ == "__main__":
     # denom_min = min(denom[region]) # should be positive
     
     ''' Iterative Relaxation '''
-    W = geometry.iterative_relaxation(T, boundin, boundout, exterior)
-#    plt.subplot(121)
-    imshow(W)
+    W, L0, L1 = geometry.iterative_relaxation(T, boundin, boundout, exterior, maxiter = 10000)
+    fig = imshow(W)
+    cv.imwrite(imgfolder + 'result_' + imgname, W)
+    np.save(resultfolder + 'W' + imgname.split('.')[0], W)
+    np.save(resultfolder + 'L0' + imgname.split('.')[0], L0)
+    np.save(resultfolder + 'L1' + imgname.split('.')[0], L1)
     
-    ''' Ordered Transversal '''
-#    W1 = geometry.ordered_traversal(boundin.shape, T, boundin, boundout, region)
+#    ''' Ordered Transversal '''
+#    W1, L0, L1, Status = geometry.ordered_traversal(boundin.shape, T, boundin, boundout, region)
 #    plt.subplot(122)
 #    imshow(W1)
         

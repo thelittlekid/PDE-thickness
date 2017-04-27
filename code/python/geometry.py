@@ -9,6 +9,7 @@ Created on Wed Apr 12 21:31:40 2017
 import numpy as np
 import numpy.linalg as LA
 import heapq as hp
+from matplotlib.pyplot import imshow
 
 def calculate_gradient(u, mode = 'central'):
     """
@@ -64,7 +65,7 @@ def calculate_tangent_field(grad):
     pass
     return T
 
-def iterative_relaxation(T, boundin, boundout, exterior, precision = 1e-6):
+def iterative_relaxation(T, boundin, boundout, exterior, precision = 1e-6, maxiter = 10000):
     """
         Implementation of Iterative Relaxation algorithm, currently work in 2D
     Reference:
@@ -78,9 +79,13 @@ def iterative_relaxation(T, boundin, boundout, exterior, precision = 1e-6):
             inside and outside boundary respectively
         exterior: d1 x d2 x ... dn binary matrix specifying the exterior of the 
             region R
+        precision: minimum precision requirement
+        maxiter: maximum number of iterations
 
     Returns:
         W: the thickness of each point, size d1 x d2 x ... x dn
+        L0: the distance to the inner boundary, same size as W
+        L1: the distance to the outer boundary, same size as W
     """
     # Precalculate the denominator
     denom = np.sum(abs(T), axis = T.ndim - 1) 
@@ -118,7 +123,7 @@ def iterative_relaxation(T, boundin, boundout, exterior, precision = 1e-6):
         L0[exterior], L1[exterior] = 0.0, 0.0
 
         count += 1
-        if count > 10000:
+        if count > maxiter:
             break;
             
         diffnorm0 = LA.norm(L0 - L0old, np.inf)
@@ -133,9 +138,12 @@ def iterative_relaxation(T, boundin, boundout, exterior, precision = 1e-6):
     W[exterior] = 0
     
     pass
-    return W
+    return W, L0, L1
 
 UNVISITED, VISITED, SOLVED = 0, 1, 2 # status codes
+points = []
+order = np.zeros([64, 64], dtype='int') - 1
+visit_order = np.zeros([64, 64], dtype='int') - 1
 def ordered_traversal(shape, T, boundin, boundout, region):
     """
         Implementation of Ordered Traversal algorithm, currently work in 2D
@@ -155,9 +163,14 @@ def ordered_traversal(shape, T, boundin, boundout, region):
     Returns:
         W: the thickness of each point, size d1 x d2 x ... x dn
     """
+    count = 1
     L0, L1 = np.zeros(shape), np.zeros(shape)
+#    exterior = np.logical_not(np.logical_or(boundin, boundout, region))
+#    L0[exterior] = 10000
+
     # L0[boundin] = 0
-    h = [] # min heap
+#    h = [] # min heap 
+    h = {}  # list of VISTIED points, using python dictionary: [position: L]
     
     # Step 1: Initially tag all points in R as UNVISITED    
     Status = np.zeros(shape) + SOLVED # set exterior to be SOLVED
@@ -177,13 +190,19 @@ def ordered_traversal(shape, T, boundin, boundout, region):
         fast_marching(L0, pos, T, Status, h, direction = 0)
     
     # Step 5: Stop if all points in have been tagged SOLVED, else go to Step 3.
-    count = 0
     while len(h) > 0: # len(h) > 0
         # Step 3: Find the grid point, within the current list of VISITED points, 
         # with the smallest value of computed so far. Remove this point from the
         # list and re-tag it as SOLVED.
-        pos = np.array(hp.heappop(h)[1])
+        
+#        pos = np.array(hp.heappop(h)[1])
+        pos = min(h, key = h.get)
+        h.pop(pos)
+        
+        pos = np.array(pos)
         Status[tuple(pos)] = SOLVED
+        points.append(tuple(pos))
+        order[tuple(pos)] = count
         count += 1
         
         # Step 4: Update the values of using (8) for whichever neighbors of this
@@ -193,12 +212,13 @@ def ordered_traversal(shape, T, boundin, boundout, region):
         fast_marching(L0, pos, T, Status, h, direction = 0)
     
     ''' For L1 '''
-    h = [] # min heap
+#    h = [] # min heap
+    h = {} # list of VISTIED points, using python dictionary: [position: L]
     
     # Step 1: Initially tag all points in R as UNVISITED    
     Status = np.zeros(shape) + SOLVED # set exterior to be SOLVED
     Status[boundin] = UNVISITED
-    Status[region] = UNVISITED # TODO: what about the outer boundary?
+    Status[region] = UNVISITED # TODO: what about the inner boundary?
     
     # Step 2: Solve for L1 at points next to the inner boundary \partial R1, 
     # and retag these points as VISITED
@@ -216,7 +236,12 @@ def ordered_traversal(shape, T, boundin, boundout, region):
         # Step 3: Find the grid point, within the current list of VISITED points, 
         # with the smallest value of computed so far. Remove this point from the
         # list and re-tag it as SOLVED.
-        pos = np.array(hp.heappop(h)[1])
+#        pos = np.array(hp.heappop(h)[1])
+        
+        pos = min(h, key = h.get)
+        h.pop(pos)
+        
+        pos = np.array(pos)        
         Status[tuple(pos)] = SOLVED
         
         # Step 4: Update the values of using (8) for whichever neighbors of this
@@ -224,11 +249,11 @@ def ordered_traversal(shape, T, boundin, boundout, region):
         # currently tagged as UNVISITED, re-tag them as VISITED and add them to
         # the current list of VISITED points.
         fast_marching(L1, pos, T, Status, h, direction = 1)
-    
+
     W = L0 + L1
     pass
 
-    return W
+    return W, L0, L1, Status
 
 def fast_marching(L, pos, T, Status, h, direction = 0):
     """
@@ -246,21 +271,29 @@ def fast_marching(L, pos, T, Status, h, direction = 0):
         L and Status should be updated    
     """
     # Note: python will pass numpy.array by reference
-    # pos is a single point
+    # pos is a single point, [n x ]
     shape = L.shape
-    for dim in xrange(pos.ndim):
-        shift = np.zeros(pos.ndim, dtype = 'int')
+    for dim in xrange(len(pos)): # ndim starts from 0
+        shift = np.zeros(len(pos), dtype = 'int')
         for step in [1, -2]: # shift right for 1, then left for 2
             shift[dim] += step
             pos_neighbor = pos + shift # position of the neighbor
-            if pos_neighbor[dim] <= shape[dim] and pos_neighbor[dim] >= 0 \
-            and Status[tuple(pos_neighbor)] == SOLVED: # not out of bounds and not SOLVED
+            
+
+            if pos_neighbor[dim] < shape[dim] and pos_neighbor[dim] >= 0 \
+            and Status[tuple(pos_neighbor)] != SOLVED: # not out of bounds and not SOLVED
                 update_value(L, pos_neighbor, T, direction)
                 
                 # If we use min-heap, we have to update the values of the points
                 # that are already in the heap
 #                if Status[tuple(pos_neighbor)] == UNVISITED:
 #                    hp.heappush(h, (L[tuple(pos_neighbor)], tuple(pos_neighbor)))
+                
+                # if UNVISITED, add it to the list, if VISITED and already in 
+                # the list, update its value. Luckily, same code in python
+#                if Status[tuple(pos_neighbor)] == UNVISITED:  
+#                    h[tuple(pos_neighbor)] = L[tuple(pos_neighbor)]
+                h[tuple(pos_neighbor)] = L[tuple(pos_neighbor)]
                 Status[tuple(pos_neighbor)] = VISITED
     pass
 
@@ -277,24 +310,37 @@ def update_value(L, pos, T, direction = 0):
     Returns:
         L should be updated 
     """
+    if tuple(pos) == (53, 23):
+        print "Hello"
     shape = L.shape
     numer = 1.0
     denom = sum(abs(T[tuple(pos)]))
-    for dim in xrange(pos.ndim):
-        shift = np.zeros(pos.ndim, dtype = 'int')
+    for dim in xrange(len(pos)):
+        shift = np.zeros(len(pos), dtype = 'int')
         # find the upwind direction
         if T[tuple(pos)][dim] > 0: 
-            shift[dim] += np.sign(direction - 0.5)            
+            shift[dim] += np.sign(direction - 0.5)               
         else:
-            shift[dim] -= np.sign(direction - 0.5)
+            shift[dim] -= np.sign(direction - 0.5) 
+#        if direction == 0:
+#            if T[tuple(pos)][dim] > 0: 
+#                shift[dim] -= 1               
+#            else:
+#                shift[dim] += 1
+#        else:
+#            if T[tuple(pos)][dim] > 0: 
+#                shift[dim] += 1               
+#            else:
+#                shift[dim] -= 1
             
         pos_neighbor = pos + shift # position of the upwind neighbor
             
         # check if it's not out of bound
-        if pos_neighbor[dim] <= shape[dim] and pos_neighbor[dim] >= 0:
+        if pos_neighbor[dim] < shape[dim] and pos_neighbor[dim] >= 0:
             value_neighbor = L[tuple(pos_neighbor)]
         else:
             value_neighbor = L[tuple(pos)]
+        
             
         numer += abs(T[tuple(pos)][dim]) * value_neighbor
         
@@ -302,5 +348,7 @@ def update_value(L, pos, T, direction = 0):
     pass
 
 if __name__ == "__main__":
+    W1, L0, L1, Status = ordered_traversal(boundin.shape, T, boundin, boundout, region)
+    imshow(L0)
     pass
     
