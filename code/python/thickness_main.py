@@ -9,6 +9,7 @@ import cv2 as cv
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.pyplot import imshow
+from scipy.misc import imresize
 import diffusion
 import geometry
 
@@ -17,7 +18,7 @@ def main():
 
 imgfolder = '../../img/'
 resultfolder = '../../result/'
-imgname = 'test.png'
+imgname = 'test0.2.png'
 
 if __name__ == "__main__":
     # TODO: move this to main() after debugging
@@ -48,7 +49,7 @@ if __name__ == "__main__":
     
     ''' Solve Laplace Equation '''
     u = diffusion.linear_heat_diffusion(Iin, fixed_points = fixed_points, \
-                                        precision = 1e-8, maxiter = 4000)
+                                        precision = 1e-8, maxiter = 10000)
     imshow(u)
     np.save(resultfolder + 'u' + imgname.split('.')[0], u)
     u = np.load(resultfolder + 'u' + imgname.split('.')[0] + '.npy')
@@ -64,7 +65,8 @@ if __name__ == "__main__":
     ''' Iterative Relaxation '''
     W, L0, L1 = geometry.iterative_relaxation(T, boundin, boundout, exterior, maxiter = 10000)
     fig = imshow(W)
-    cv.imwrite(imgfolder + 'result_' + imgname, W)
+    plt.axis('off')
+#    cv.imwrite(imgfolder + 'result_' + imgname, W)
     np.save(resultfolder + 'W' + imgname.split('.')[0], W)
     np.save(resultfolder + 'L0' + imgname.split('.')[0], L0)
     np.save(resultfolder + 'L1' + imgname.split('.')[0], L1)
@@ -74,7 +76,16 @@ if __name__ == "__main__":
 #    plt.subplot(122)
 #    imshow(W1)
         
-    
+    ''' Analysis for resolution vs thickness variance '''
+    # Specify the mask of the region of interest
+    mask = np.zeros([768, 1024], dtype='bool')
+    mask[210:338, 425:525] = True # the bounding box for ROI
+    mask = imresize(mask, Iin.shape, interp = 'nearest')
+
+    mask = np.logical_and(mask, region)
+    ROI = W[mask] * (1024.0/Iin.shape[1])
+    std = np.std(ROI)
+    print "standard deviation in ROI: ", std
     
     
     

@@ -6,8 +6,9 @@ Created on Sat Apr  8 23:29:23 2017
 @author: fantasie
 """
 import numpy as np
-import math
 import numpy.linalg as LA
+import cv2 as cv
+from matplotlib.pyplot import imshow
 
 def linear_heat_diffusion(Iin, dt = 0.2, fixed_points = [], maxiter = 100, \
                           precision = 1e-6):
@@ -146,4 +147,30 @@ def geometric_heat_diffusion(Iin, dt = 0.25, fixed_points = [], maxiter = 100,\
     print "number of iteration: ", count
     pass
     return I
+
+def main():
+    imgfolder = '../../img/'
+    imgname = 'circle_small.png'
+    img = cv.imread(imgfolder + imgname, cv.IMREAD_COLOR)
+    b,g,r = cv.split(img) # get b, g, r
+    img = cv.merge([r,g,b]) # switch it to r, g, b
+    
+    boundout = (r > 150) # outer boundary drawn in red
+    region = (b > 200) # region colored in blue
+    outside = (r == 127) # outside exterior
+
+    
+    Iin = np.zeros(b.shape)
+    Iin[boundout], Iin[outside], Iin[region] = 1.0, 1.0, 0.5
+
+    fixed_points = np.logical_not(region)
+    
+    ''' Solve Laplace Equation '''
+    u = linear_heat_diffusion(Iin, fixed_points = fixed_points, \
+                              precision = 1e-8, maxiter = 50000, \
+                              dt = 0.27)
+    imshow(u)
+    
+if __name__ == "__main__":
+    main()
     

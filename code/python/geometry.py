@@ -10,6 +10,8 @@ import numpy as np
 import numpy.linalg as LA
 import heapq as hp
 from matplotlib.pyplot import imshow
+import diffusion
+import cv2 as cv
 
 def calculate_gradient(u, mode = 'central'):
     """
@@ -65,6 +67,7 @@ def calculate_tangent_field(grad):
     pass
     return T
 
+errors = []
 def iterative_relaxation(T, boundin, boundout, exterior, precision = 1e-6, maxiter = 10000):
     """
         Implementation of Iterative Relaxation algorithm, currently work in 2D
@@ -87,12 +90,19 @@ def iterative_relaxation(T, boundin, boundout, exterior, precision = 1e-6, maxit
         L0: the distance to the inner boundary, same size as W
         L1: the distance to the outer boundary, same size as W
     """
+
     # Precalculate the denominator
     denom = np.sum(abs(T), axis = T.ndim - 1) 
     
     # Step 1: set L0 = L1 = 0 at all grid
     L0 = np.zeros(denom.shape)
     L1 = np.zeros(denom.shape)
+    ground = np.zeros(denom.shape)
+    region = np.logical_not(\
+                        np.logical_or( \
+                            np.logical_or(boundin, boundout), \
+                            exterior))
+    ground[region] = 36.5
     
     # Step 2: Use (8) and (9) to update L0 and L1 at points inside R
     # Step 3: repeat step 2 until the values L0 and L1 converges
@@ -132,6 +142,10 @@ def iterative_relaxation(T, boundin, boundout, exterior, precision = 1e-6, maxit
             stop = True
             
         L0old, L1old = L0, L1
+        
+        error = abs(L0 + L1 - ground)
+        error = error[region]
+        errors.append(LA.norm(error))
         
     print "number of iterations in iterative relaxation: ", count
     W = L0 + L1
@@ -347,8 +361,52 @@ def update_value(L, pos, T, direction = 0):
     L[tuple(pos)] = numer / denom
     pass
 
+    
 if __name__ == "__main__":
-    W1, L0, L1, Status = ordered_traversal(boundin.shape, T, boundin, boundout, region)
-    imshow(L0)
+
+    imgfolder = '../../img/'
+    resultfolder = '../../result/'
+    imgname = 'annulus_mid.png'
+    
+    img = cv.imread(imgfolder + imgname, cv.IMREAD_COLOR)
+    b,g,r = cv.split(img) # get b, g, r
+    img = cv.merge([r,g,b]) # switch it to r, g, b
+    imshow(img)
+    
+    boundin = (g > 150) # inner boundary drawn in green
+    boundout = (r > 150) # outer boundary drawn in red
+    region = (b > 200) # region colored in blue
+    inside = (r + g + b < 10) # inside exterior
+    outside = (r == 127) # outside exterior
+    exterior = np.logical_or(inside, outside)
+    bound_points = np.logical_or(boundin, boundout) # boundary points
+    
+    Iin = np.zeros(b.shape)
+    Iin[boundout], Iin[outside], Iin[region] = 1.0, 1.0, 0.5
+
+    
+    fixed_points = np.logical_not(region)
+    
+    ''' Solve Laplace Equation '''
+    u = diffusion.linear_heat_diffusion(Iin, fixed_points = fixed_points, \
+                                        precision = 1e-8, maxiter = 10000)
+    imshow(u)
+
+    
+    ''' Calculate the tangent field '''
+    grad = calculate_gradient(u)
+    ux, uy = grad[0], grad[1]
+    T = calculate_tangent_field(grad)
+    Tx, Ty = T[:,:,0], T[:,:,1]
+    denom = np.sum(abs(T), axis = 2)
+    # denom_min = min(denom[region]) # should be positive
+    
+    ''' Iterative Relaxation '''
+    W, L0, L1 = iterative_relaxation(T, boundin, boundout, exterior, maxiter = 10000)
+    fig = imshow(W)
+    
+    
+    #    W1, L0, L1, Status = ordered_traversal(boundin.shape, T, boundin, boundout, region)
+#    imshow(L0)
     pass
     
